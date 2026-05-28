@@ -11,15 +11,49 @@ import { centsToDecimalString } from './money'
 export interface OrderOptions {
   /** The platform-native order id (drives the idempotency key). */
   orderId: string
+  /** Independent customer-facing short reference (not derived from orderId). */
+  shortOrderId: string
   /** Cashless (online) vs cash-on-delivery. */
   cashless: boolean
   /** Customer requested cutlery (GrabFood `cutlery`). */
   cutlery: boolean
 }
 
+function randomUUID(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  // Fallback for non-secure contexts (HTTP)
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0
+    return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16)
+  })
+}
+
+function randomAlphaNum(len: number, uppercase = false): string {
+  let result = ''
+  while (result.length < len) {
+    result += Math.random().toString(36).slice(2)
+  }
+  const s = result.slice(0, len)
+  return uppercase ? s.toUpperCase() : s
+}
+
+/**
+ * A short customer-facing reference, independent of the platform order id.
+ * GrabFood: "GF-XXXX" (4 uppercase alphanum)
+ * Foodpanda: "xxxx-xxxx" (4+4 lowercase alphanum separated by dash)
+ */
+export function generateShortOrderId(platform: PlatformId): string {
+  if (platform === 'foodpanda') {
+    return `${randomAlphaNum(4)}-${randomAlphaNum(4)}`
+  }
+  return `GF-${randomAlphaNum(4, true)}`
+}
+
 /** A platform-native order id. GrabFood ids are short codes; Foodpanda uses a UUID token. */
 export function generateOrderId(platform: PlatformId): string {
-  if (platform === 'foodpanda') return crypto.randomUUID()
+  if (platform === 'foodpanda') return randomUUID()
   const rand = Math.random().toString(36).slice(2, 8).toUpperCase()
   return `SIM-${rand}`
 }
@@ -33,7 +67,7 @@ function buildGrabFood(
   const now = new Date().toISOString()
   return {
     orderID: opts.orderId,
-    shortOrderNumber: `GF-${opts.orderId.slice(-4)}`,
+    shortOrderNumber: opts.shortOrderId,
     merchantID: store.externalId,
     partnerMerchantID: store.externalId,
     paymentType: opts.cashless ? 'CASHLESS' : 'CASH',
@@ -78,7 +112,7 @@ function buildFoodpanda(
 ): Record<string, unknown> {
   return {
     token: opts.orderId,
-    code: opts.orderId.slice(0, 8),
+    code: opts.shortOrderId,
     createdAt: new Date().toISOString(),
     expeditionType: 'delivery',
     payment: {

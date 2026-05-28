@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { PLATFORMS, getPlatform, type PlatformId, type SimStore } from '@/lib/catalog'
 import { cartTotals, type CartLine } from '@/lib/cart'
-import { buildPayload, generateOrderId, type OrderOptions } from '@/lib/payload'
+import { buildPayload, generateOrderId, generateShortOrderId } from '@/lib/payload'
 import { sendWebhook, type SendResult } from '@/lib/api'
 
 /** What the customer has configured for a single product on the menu. */
@@ -22,7 +22,6 @@ export interface HistoryEntry {
   at: number
 }
 
-const DEFAULT_OPTIONS: OrderOptions = { orderId: '', cashless: false, cutlery: false }
 
 export function useOrderSimulator(apiUrl: string) {
   const [platformId, setPlatformId] = useState<PlatformId>('grabfood')
@@ -38,10 +37,12 @@ export function useOrderSimulator(apiUrl: string) {
   const [cashless, setCashless] = useState(false)
   const [cutlery, setCutlery] = useState(false)
   const [orderId, setOrderId] = useState(() => generateOrderId('grabfood'))
+  const [shortOrderId, setShortOrderId] = useState(() => generateShortOrderId('grabfood'))
 
   const [sending, setSending] = useState(false)
   const [result, setResult] = useState<SendResult | null>(null)
   const [history, setHistory] = useState<HistoryEntry[]>([])
+  const [placedShortOrderId, setPlacedShortOrderId] = useState<string | null>(null)
 
   // Derive the cart lines from the current store's menu + per-product selections.
   const lines: CartLine[] = useMemo(() => {
@@ -65,8 +66,8 @@ export function useOrderSimulator(apiUrl: string) {
 
   // The payload that "Place Order" would send right now — also shown raw in the UI.
   const payload = useMemo(
-    () => buildPayload(platformId, store, lines, totals, { ...DEFAULT_OPTIONS, orderId, cashless, cutlery }),
-    [platformId, store, lines, totals, orderId, cashless, cutlery],
+    () => buildPayload(platformId, store, lines, totals, { orderId, shortOrderId, cashless, cutlery }),
+    [platformId, store, lines, totals, orderId, shortOrderId, cashless, cutlery],
   )
 
   /** Commit an item from the in-phone detail screen to the basket (replaces any
@@ -98,6 +99,7 @@ export function useOrderSimulator(apiUrl: string) {
     setCart({})
     setResult(null)
     setOrderId(generateOrderId(id))
+    setShortOrderId(generateShortOrderId(id))
   }
 
   function selectStore(externalId: string) {
@@ -108,6 +110,7 @@ export function useOrderSimulator(apiUrl: string) {
 
   function newOrderId() {
     setOrderId(generateOrderId(platformId))
+    setShortOrderId(generateShortOrderId(platformId))
   }
 
   async function placeOrder() {
@@ -131,6 +134,12 @@ export function useOrderSimulator(apiUrl: string) {
           ...prev,
         ].slice(0, 12),
       )
+      if (res.status === 'accepted' || res.status === 'duplicate') {
+        setPlacedShortOrderId(shortOrderId)
+        setCart({})
+        setOrderId(generateOrderId(platformId))
+        setShortOrderId(generateShortOrderId(platformId))
+      }
     } finally {
       setSending(false)
     }
@@ -150,6 +159,8 @@ export function useOrderSimulator(apiUrl: string) {
     sending,
     result,
     history,
+    placedShortOrderId,
+    clearPlacedOrder: () => setPlacedShortOrderId(null),
     selectPlatform,
     selectStore,
     addToBasket,

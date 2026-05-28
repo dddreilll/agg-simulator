@@ -2,6 +2,7 @@ import { useState } from 'react'
 import {
   ArrowLeft,
   BatteryFull,
+  CheckCircle2,
   Loader2,
   Minus,
   Plus,
@@ -20,7 +21,7 @@ import { formatCents } from '@/lib/money'
 
 const clock = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit' })
 
-type Screen = 'menu' | 'item' | 'basket'
+type Screen = 'menu' | 'item' | 'basket' | 'confirmation'
 interface Draft {
   quantity: number
   modifierIds: string[]
@@ -52,6 +53,12 @@ export function PhonePreview({ sim }: { sim: Simulator }) {
     setPrevKey(storeKey)
     setScreen('menu')
     setOpenId(null)
+    sim.clearPlacedOrder()
+  }
+
+  async function handlePlaceOrder() {
+    await sim.placeOrder()
+    setScreen('confirmation')
   }
 
   const openProduct = store.products.find((p) => p.externalId === openId) ?? null
@@ -381,7 +388,7 @@ export function PhonePreview({ sim }: { sim: Simulator }) {
                   type="button"
                   className="h-11 w-full bg-emerald-600 text-base text-white hover:bg-emerald-600/90"
                   disabled={lines.length === 0 || sim.sending}
-                  onClick={sim.placeOrder}
+                  onClick={handlePlaceOrder}
                 >
                   {sim.sending ? <Loader2 className="animate-spin" /> : null}
                   {sim.sending ? 'Placing…' : 'Place Order'}
@@ -398,6 +405,30 @@ export function PhonePreview({ sim }: { sim: Simulator }) {
                 </div>
               </div>
             </>
+          )}
+
+          {/* ---------- CONFIRMATION ---------- */}
+          {screen === 'confirmation' && (
+            <div className="flex flex-1 flex-col items-center justify-center gap-6 px-6 text-center">
+              <CheckCircle2 className="size-16 text-emerald-500" />
+              <div className="space-y-1">
+                <p className="text-lg font-semibold">Order Placed!</p>
+                <p className="text-sm text-neutral-500">Your customer reference number</p>
+                <p className="font-mono text-3xl font-bold tracking-wider text-neutral-900">
+                  {sim.placedShortOrderId}
+                </p>
+              </div>
+              <Button
+                type="button"
+                className="w-full bg-emerald-600 text-white hover:bg-emerald-600/90"
+                onClick={() => {
+                  sim.clearPlacedOrder()
+                  setScreen('menu')
+                }}
+              >
+                New Order
+              </Button>
+            </div>
           )}
         </div>
       </div>
