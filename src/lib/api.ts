@@ -1,4 +1,4 @@
-import type { PlatformId } from './catalog'
+import type { MenuProduct, PlatformId } from './catalog'
 
 export type SendStatus = 'accepted' | 'duplicate' | 'rejected' | 'error'
 
@@ -15,6 +15,38 @@ export interface SendResult {
   message?: string
   /** Parsed response body (or the thrown error), for the raw view. */
   body: unknown
+}
+
+/** Fetch menu products for a given platform and store from the backend catalog API. */
+export async function fetchMenuProducts(
+  apiUrl: string,
+  platform: PlatformId,
+  externalStoreId: string,
+): Promise<MenuProduct[]> {
+  const url =
+    `${apiUrl}/catalog/products/by-platform` +
+    `?platformName=${encodeURIComponent(platform.toUpperCase())}` +
+    `&externalStoreId=${encodeURIComponent(externalStoreId)}`
+  try {
+    const res = await fetch(url)
+    if (!res.ok) return []
+    const data = (await res.json()) as Array<{
+      externalId: string
+      name: string
+      description: string | null
+      basePriceCents: number
+      isAvailable: boolean
+    }>
+    return data.map((p) => ({
+      externalId: p.externalId,
+      name: p.name,
+      description: p.description,
+      basePriceCents: p.basePriceCents,
+      isAvailable: p.isAvailable,
+    }))
+  } catch {
+    return []
+  }
 }
 
 /**

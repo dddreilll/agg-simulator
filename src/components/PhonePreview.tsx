@@ -24,7 +24,6 @@ const clock = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-dig
 type Screen = 'menu' | 'item' | 'basket' | 'confirmation'
 interface Draft {
   quantity: number
-  modifierIds: string[]
   notes: string
 }
 
@@ -40,11 +39,11 @@ function Thumb({ className = '' }: { className?: string }) {
 }
 
 export function PhonePreview({ sim }: { sim: Simulator }) {
-  const { store, platform, totals, lines, cart, options } = sim
+  const { store, platform, totals, lines, cart, options, products, productsLoading } = sim
 
   const [screen, setScreen] = useState<Screen>('menu')
   const [openId, setOpenId] = useState<string | null>(null)
-  const [draft, setDraft] = useState<Draft>({ quantity: 1, modifierIds: [], notes: '' })
+  const [draft, setDraft] = useState<Draft>({ quantity: 1, notes: '' })
 
   // Reset the flow when the channel/store (and therefore the menu) changes.
   const storeKey = `${platform.id}|${store.externalId}`
@@ -61,31 +60,18 @@ export function PhonePreview({ sim }: { sim: Simulator }) {
     setScreen('confirmation')
   }
 
-  const openProduct = store.products.find((p) => p.externalId === openId) ?? null
+  const openProduct = products.find((p) => p.externalId === openId) ?? null
   const itemCount = lines.reduce((n, l) => n + l.quantity, 0)
 
   function openItem(product: MenuProduct) {
     const existing = cart[product.externalId]
     setDraft(
       existing
-        ? {
-            quantity: existing.quantity,
-            modifierIds: [...existing.modifierIds],
-            notes: existing.notes,
-          }
-        : { quantity: 1, modifierIds: [], notes: '' },
+        ? { quantity: existing.quantity, notes: existing.notes }
+        : { quantity: 1, notes: '' },
     )
     setOpenId(product.externalId)
     setScreen('item')
-  }
-
-  function toggleDraftModifier(id: string) {
-    setDraft((d) => ({
-      ...d,
-      modifierIds: d.modifierIds.includes(id)
-        ? d.modifierIds.filter((m) => m !== id)
-        : [...d.modifierIds, id],
-    }))
   }
 
   function commitDraft() {
@@ -93,13 +79,6 @@ export function PhonePreview({ sim }: { sim: Simulator }) {
     sim.addToBasket(openProduct.externalId, draft)
     setScreen('menu')
   }
-
-  const draftUnitCents = openProduct
-    ? openProduct.basePriceCents +
-      openProduct.modifiers
-        .filter((m) => draft.modifierIds.includes(m.externalId))
-        .reduce((s, m) => s + m.priceCents, 0)
-    : 0
 
   const screens = (
     <div className="flex h-[620px] flex-col text-neutral-900">
@@ -114,36 +93,52 @@ export function PhonePreview({ sim }: { sim: Simulator }) {
               {platform.label}
             </span>
           </div>
-          <ul className="flex-1 divide-y overflow-y-auto">
-            {store.products.map((product) => {
-              const qty = cart[product.externalId]?.quantity ?? 0
-              return (
-                <li key={product.externalId}>
-                  <button
-                    type="button"
-                    onClick={() => openItem(product)}
-                    className="flex w-full gap-3 p-4 text-left hover:bg-neutral-50"
-                  >
-                    <Thumb className="size-16" />
-                    <div className="min-w-0 flex-1">
-                      <p className="flex items-center gap-1.5 font-medium">
-                        {qty > 0 && (
-                          <span className="text-emerald-600">{qty}×</span>
+
+          {productsLoading ? (
+            <div className="flex flex-1 items-center justify-center text-neutral-400">
+              <Loader2 className="size-6 animate-spin" />
+            </div>
+          ) : products.length === 0 ? (
+            <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center text-sm text-neutral-400">
+              <UtensilsCrossed className="size-8" />
+              <p>No products found for this store.</p>
+              <p className="text-xs">Check that the backend is seeded and the store mapping exists.</p>
+            </div>
+          ) : (
+            <ul className="flex-1 divide-y overflow-y-auto">
+              {products.map((product) => {
+                const qty = cart[product.externalId]?.quantity ?? 0
+                return (
+                  <li key={product.externalId}>
+                    <button
+                      type="button"
+                      onClick={() => openItem(product)}
+                      className="flex w-full gap-3 p-4 text-left hover:bg-neutral-50"
+                    >
+                      <Thumb className="size-16" />
+                      <div className="min-w-0 flex-1">
+                        <p className="flex items-center gap-1.5 font-medium">
+                          {qty > 0 && (
+                            <span className="text-emerald-600">{qty}×</span>
+                          )}
+                          {product.name}
+                        </p>
+                        {product.description && (
+                          <p className="line-clamp-2 text-xs text-neutral-500">
+                            {product.description}
+                          </p>
                         )}
-                        {product.name}
-                      </p>
-                      <p className="line-clamp-2 text-xs text-neutral-500">
-                        {product.description}
-                      </p>
-                      <p className="mt-1 text-sm font-medium">
-                        {formatCents(product.basePriceCents)}
-                      </p>
-                    </div>
-                  </button>
-                </li>
-              )
-            })}
-          </ul>
+                        <p className="mt-1 text-sm font-medium">
+                          {formatCents(product.basePriceCents)}
+                        </p>
+                      </div>
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+
           {itemCount > 0 && (
             <div className="border-t p-3">
               <Button
@@ -180,31 +175,8 @@ export function PhonePreview({ sim }: { sim: Simulator }) {
                 {formatCents(openProduct.basePriceCents)}
               </span>
             </div>
-            <p className="mt-1 text-sm text-neutral-500">{openProduct.description}</p>
-
-            {openProduct.modifiers.length > 0 && (
-              <div className="mt-4 border-t pt-3">
-                <p className="mb-2 text-sm font-medium">Add-ons</p>
-                <div className="space-y-1.5">
-                  {openProduct.modifiers.map((m) => (
-                    <label
-                      key={m.externalId}
-                      className="flex cursor-pointer items-center justify-between gap-2 text-sm"
-                    >
-                      <span className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={draft.modifierIds.includes(m.externalId)}
-                          onChange={() => toggleDraftModifier(m.externalId)}
-                          className="size-4 accent-emerald-600"
-                        />
-                        {m.name}
-                      </span>
-                      <span className="text-neutral-500">+{formatCents(m.priceCents)}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
+            {openProduct.description && (
+              <p className="mt-1 text-sm text-neutral-500">{openProduct.description}</p>
             )}
 
             <div className="mt-4 border-t pt-3">
@@ -250,7 +222,7 @@ export function PhonePreview({ sim }: { sim: Simulator }) {
               onClick={commitDraft}
             >
               <span>{cart[openProduct.externalId] ? 'Update Basket' : 'Add to Basket'}</span>
-              <span>{formatCents(draftUnitCents * draft.quantity)}</span>
+              <span>{formatCents(openProduct.basePriceCents * draft.quantity)}</span>
             </Button>
           </div>
         </>
@@ -315,11 +287,6 @@ export function PhonePreview({ sim }: { sim: Simulator }) {
                         </button>
                         <span>{formatCents(lineUnitCents(line) * line.quantity)}</span>
                       </div>
-                      {line.modifiers.map((m) => (
-                        <p key={m.externalId} className="text-xs text-neutral-500">
-                          + {m.name}
-                        </p>
-                      ))}
                       {line.notes && (
                         <p className="text-xs text-amber-700">"{line.notes}"</p>
                       )}

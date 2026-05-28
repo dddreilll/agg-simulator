@@ -1,8 +1,8 @@
 // Builds the *native* webhook payload each platform would POST to the backend.
 // The backend's front door only reads the order id at ingestion; full structural
-// validation (the zod schemas in `delivery-platform_backend/src/translation/*`)
-// happens in the worker, so these payloads are shaped to pass that validation and
-// resolve against the seeded mappings.
+// validation (the zod schemas in `agg-be/src/translation/*`) happens in the
+// worker, so these payloads are shaped to pass that validation and resolve
+// against the seeded mappings.
 
 import type { CartLine, CartTotals } from './cart'
 import type { PlatformId, SimStore } from './catalog'
@@ -87,12 +87,6 @@ function buildGrabFood(
       price: line.product.basePriceCents,
       tax: 0,
       ...(line.notes ? { specifications: line.notes } : {}),
-      modifiers: line.modifiers.map((m) => ({
-        id: m.externalId,
-        price: m.priceCents,
-        quantity: 1,
-        tax: 0,
-      })),
     })),
     price: {
       subtotal: totals.subtotalCents,
@@ -134,12 +128,6 @@ function buildFoodpanda(
       unitPrice: centsToDecimalString(line.product.basePriceCents),
       paidPrice: centsToDecimalString(line.product.basePriceCents * line.quantity),
       ...(line.notes ? { comment: line.notes } : {}),
-      selectedToppings: line.modifiers.map((m) => ({
-        remoteCode: m.externalId,
-        name: m.name,
-        price: centsToDecimalString(m.priceCents),
-        quantity: 1,
-      })),
     })),
     price: { grandTotal: centsToDecimalString(totals.totalCents) },
   }

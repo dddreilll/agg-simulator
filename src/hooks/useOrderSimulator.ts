@@ -1,13 +1,12 @@
-import { useMemo, useState } from 'react'
-import { PLATFORMS, getPlatform, type PlatformId, type SimStore } from '@/lib/catalog'
+import { useEffect, useMemo, useState } from 'react'
+import { PLATFORMS, getPlatform, type MenuProduct, type PlatformId, type SimStore } from '@/lib/catalog'
 import { cartTotals, type CartLine } from '@/lib/cart'
 import { buildPayload, generateOrderId, generateShortOrderId } from '@/lib/payload'
-import { sendWebhook, type SendResult } from '@/lib/api'
+import { fetchMenuProducts, sendWebhook, type SendResult } from '@/lib/api'
 
 /** What the customer has configured for a single product on the menu. */
 interface LineState {
   quantity: number
-  modifierIds: string[]
   notes: string
 }
 
@@ -44,23 +43,37 @@ export function useOrderSimulator(apiUrl: string) {
   const [history, setHistory] = useState<HistoryEntry[]>([])
   const [placedShortOrderId, setPlacedShortOrderId] = useState<string | null>(null)
 
-  // Derive the cart lines from the current store's menu + per-product selections.
+  const [products, setProducts] = useState<MenuProduct[]>([])
+  const [productsLoading, setProductsLoading] = useState(false)
+  const [productsError, setProductsError] = useState<string | null>(null)
+
+  // Reload the menu whenever the backend URL, platform, or store changes.
+  useEffect(() => {
+    if (!apiUrl) return
+    setProductsLoading(true)
+    setProductsError(null)
+    fetchMenuProducts(apiUrl, platformId, store.externalId)
+      .then(setProducts)
+      .catch((e: unknown) =>
+        setProductsError(e instanceof Error ? e.message : 'Failed to load menu'),
+      )
+      .finally(() => setProductsLoading(false))
+  }, [apiUrl, platformId, store.externalId])
+
+  // Derive the cart lines from the fetched products + per-product selections.
   const lines: CartLine[] = useMemo(() => {
-    return store.products
+    return products
       .map((product): CartLine | null => {
         const state = cart[product.externalId]
         if (!state || state.quantity <= 0) return null
         return {
           product,
           quantity: state.quantity,
-          modifiers: product.modifiers.filter((m) =>
-            state.modifierIds.includes(m.externalId),
-          ),
           notes: state.notes,
         }
       })
       .filter((l): l is CartLine => l !== null)
-  }, [store, cart])
+  }, [products, cart])
 
   const totals = useMemo(() => cartTotals(lines, platform), [lines, platform])
 
@@ -98,6 +111,7 @@ export function useOrderSimulator(apiUrl: string) {
     setStoreExternalId(next.stores[0].externalId)
     setCart({})
     setResult(null)
+    setProducts([])
     setOrderId(generateOrderId(id))
     setShortOrderId(generateShortOrderId(id))
   }
@@ -106,6 +120,7 @@ export function useOrderSimulator(apiUrl: string) {
     if (externalId === storeExternalId) return
     setStoreExternalId(externalId)
     setCart({})
+    setProducts([])
   }
 
   function newOrderId() {
@@ -150,6 +165,9 @@ export function useOrderSimulator(apiUrl: string) {
     platform,
     platformId,
     store,
+    products,
+    productsLoading,
+    productsError,
     lines,
     totals,
     cart,

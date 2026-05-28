@@ -1,6 +1,4 @@
-import { CheckCircle2 } from 'lucide-react'
 import type { Simulator } from '@/hooks/useOrderSimulator'
-import { formatCents } from '@/lib/money'
 
 /**
  * Mirrors the "Menu Validation" idea: a flat view of every item the simulator can
@@ -38,28 +36,6 @@ export function MenuValidation({ sim }: { sim: Simulator }) {
               </tr>
             </thead>
             <tbody>
-              {store.products.flatMap((product) => [
-                <tr key={product.externalId} className="border-b">
-                  <td className="px-4 py-2 text-muted-foreground">Product</td>
-                  <td className="px-4 py-2 font-medium">{product.name}</td>
-                  <td className="px-4 py-2 font-mono text-xs">{product.externalId}</td>
-                  <td className="px-4 py-2 text-right">{formatCents(product.basePriceCents)}</td>
-                  <td className="px-4 py-2">
-                    <CheckCircle2 className="ml-auto size-4 text-emerald-600" />
-                  </td>
-                </tr>,
-                ...product.modifiers.map((m) => (
-                  <tr key={m.externalId} className="border-b last:border-0">
-                    <td className="px-4 py-2 pl-8 text-muted-foreground">↳ Modifier</td>
-                    <td className="px-4 py-2">{m.name}</td>
-                    <td className="px-4 py-2 font-mono text-xs">{m.externalId}</td>
-                    <td className="px-4 py-2 text-right">+{formatCents(m.priceCents)}</td>
-                    <td className="px-4 py-2">
-                      <CheckCircle2 className="ml-auto size-4 text-emerald-600" />
-                    </td>
-                  </tr>
-                )),
-              ])}
             </tbody>
           </table>
         </div>

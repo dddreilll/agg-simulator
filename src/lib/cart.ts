@@ -1,9 +1,8 @@
-import type { MenuModifier, MenuProduct, PlatformDef } from './catalog'
+import type { MenuProduct, PlatformDef } from './catalog'
 
 export interface CartLine {
   product: MenuProduct
   quantity: number
-  modifiers: MenuModifier[]
   /** Free-text preparation note → GrabFood `specifications` / Foodpanda `comment`. */
   notes: string
 }
@@ -14,12 +13,8 @@ export interface CartTotals {
   totalCents: number
 }
 
-/** Per-unit price including selected modifiers. */
 export function lineUnitCents(line: CartLine): number {
-  return (
-    line.product.basePriceCents +
-    line.modifiers.reduce((sum, m) => sum + m.priceCents, 0)
-  )
+  return line.product.basePriceCents
 }
 
 export function lineSubtotalCents(line: CartLine): number {

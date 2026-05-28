@@ -1,25 +1,18 @@
-// The simulated menu. These external ids are exactly the ones the backend seed
-// (`delivery-platform_backend/src/database/seed.ts`) maps to internal products,
-// modifiers, and stores via `platform_mappings`. Sending anything else would be
-// accepted at ingestion but fail to resolve during translation — so the simulator
-// only offers what the backend knows how to fulfil. Keep this in sync with the seed.
+// Platform and store definitions for the simulator. Products are fetched from
+// the backend API (GET /catalog/products/by-platform) so this file only holds
+// the metadata needed before a connection is established (platform labels,
+// delivery fees, and the store external ids used to query the backend).
 
 export type PlatformId = 'grabfood' | 'foodpanda'
 
-export interface MenuModifier {
-  /** Platform-side id the backend resolves to an internal modifier. */
-  externalId: string
-  name: string
-  priceCents: number
-}
-
+/** A product as returned by GET /catalog/products/by-platform. */
 export interface MenuProduct {
-  /** Platform-side id the backend resolves to an internal product. */
+  /** Platform-specific external id the backend resolves in translation. */
   externalId: string
   name: string
-  description: string
+  description: string | null
   basePriceCents: number
-  modifiers: MenuModifier[]
+  isAvailable: boolean
 }
 
 export interface SimStore {
@@ -28,7 +21,6 @@ export interface SimStore {
   /** Shown in the store picker, e.g. "Manila Branch 01". */
   name: string
   location: string
-  products: MenuProduct[]
 }
 
 export interface PlatformDef {
@@ -50,24 +42,9 @@ export const PLATFORMS: PlatformDef[] = [
     deliveryFeeCents: 5000,
     stores: [
       {
-        externalId: '1-CYNGRUNGSBCCC', // seed: GRABFOOD STORE mapping
+        externalId: '1-CYNGRUNGSBCCC',
         name: 'Manila Branch 01',
         location: 'Manila, PH',
-        products: [
-          {
-            externalId: 'item-1', // seed: GRABFOOD PRODUCT mapping
-            name: '1-pc Spicy Chicken Meal',
-            description: 'Crispy spicy chicken with rice and a drink.',
-            basePriceCents: 13000,
-            modifiers: [
-              {
-                externalId: 'modifier-1', // seed: GRABFOOD MODIFIER mapping
-                name: 'Garlic Rice Upgrade',
-                priceCents: 3000,
-              },
-            ],
-          },
-        ],
       },
     ],
   },
@@ -78,24 +55,9 @@ export const PLATFORMS: PlatformDef[] = [
     deliveryFeeCents: 4900,
     stores: [
       {
-        externalId: 'sq-abcd', // seed: FOODPANDA STORE mapping
+        externalId: 'sq-abcd',
         name: 'Manila Branch 01',
         location: 'Manila, PH',
-        products: [
-          {
-            externalId: 'ID_FOR_DOUBLE_CHEESE_BURGER_ON_POS', // seed: FOODPANDA PRODUCT remoteCode
-            name: 'Double Cheese Burger',
-            description: 'Two beef patties, double cheese, toasted bun.',
-            basePriceCents: 642,
-            modifiers: [
-              {
-                externalId: 'ID_FOR_EXTRA_CHEESE_ON_POS', // seed: FOODPANDA MODIFIER remoteCode
-                name: 'Extra Cheese',
-                priceCents: 150,
-              },
-            ],
-          },
-        ],
       },
     ],
   },
