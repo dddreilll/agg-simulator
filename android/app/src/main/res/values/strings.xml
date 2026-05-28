@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Aggregator Simulator</string>
+    <string name="title_activity_main">Aggregator Simulator</string>
+    <string name="package_name">com.agg.simulator</string>
+    <string name="custom_url_scheme">com.agg.simulator</string>
+</resources>

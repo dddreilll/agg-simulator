@@ -11,7 +11,7 @@ export function ControlsPanel({ sim }: { sim: Simulator }) {
     <div className="space-y-6">
       <div>
         <h2 className="text-lg font-semibold tracking-tight">Simulate the order</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
+        <p className="mt-1 hidden text-sm text-muted-foreground lg:block">
           Browse the menu and check out on the device to the right, the way a customer would
           in the {sim.platform.label.toLowerCase()} app. Placing the order sends the webhook to
           the backend.
