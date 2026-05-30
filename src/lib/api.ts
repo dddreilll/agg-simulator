@@ -32,6 +32,7 @@ export async function fetchMenuProducts(
     if (!res.ok) return []
     const data = (await res.json()) as Array<{
       externalId: string
+      productCode: string | null
       name: string
       description: string | null
       basePriceCents: number
@@ -39,6 +40,7 @@ export async function fetchMenuProducts(
     }>
     return data.map((p) => ({
       externalId: p.externalId,
+      productCode: p.productCode ?? null,
       name: p.name,
       description: p.description,
       basePriceCents: p.basePriceCents,

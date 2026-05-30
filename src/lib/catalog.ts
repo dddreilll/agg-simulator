@@ -9,6 +9,8 @@ export type PlatformId = 'grabfood' | 'foodpanda'
 export interface MenuProduct {
   /** Platform-specific external id the backend resolves in translation. */
   externalId: string
+  /** Short customer-facing code shown on the menu, e.g. "CHK1". */
+  productCode: string | null
   name: string
   description: string | null
   basePriceCents: number
